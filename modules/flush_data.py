@@ -4,9 +4,13 @@ import pandas as pd
 from   glob import glob 
 import gc 
 
+
+
+
 class DataIO: 
     def __init__(self):
         return None 
+
 
     def CheckWrite (self, file_path):
         if os.access(file_path, os.W_OK):           
@@ -23,16 +27,17 @@ class DataIO:
 
 
 
-    def FlushFrame (self,   df ,dbpath ,  subdir , cdtg , var, p_id , ext ):
+    def FlushFrame (self,   df ,dbpath ,  subdir , cdtg , var, fid , ext ):
         """
         Since the program is relatively long, it becomes sometimes 
         slow to free memory and cosumes a lot of resources 
         Flushing data between some steps can helps to avoid such a behavior 
         """
-        if p_id !=None:
+
+        if fid !=None:
            pkpath= dbpath+"/"+subdir+"/"+cdtg
            os.system( "mkdir -p "+ pkpath   )
-           filepath="/".join(  (  pkpath , var+"_"+cdtg+"_xz"+str(p_id)+ext ) )
+           filepath="/".join(  (  pkpath , var+"_"+cdtg+"_xz"+fid+ext ) )
            try:
              df.to_pickle( filepath     , compression ="xz"  )
            except:
@@ -62,13 +67,12 @@ class DataIO:
             if os.path.isfile( file ):
                try:
                  data=pd.read_pickle(file, compression='xz', storage_options=None) 
+                 dfs.append( data  )
                except:
                  print("WARNING : Error while reading file", filepath )
-
-               dfs.append( data  )
+        
         if len(dfs)  != 0:
            all_df=pd.concat( dfs )
            return all_df  
         else:
            return None 
-
