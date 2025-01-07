@@ -1,3 +1,4 @@
+<<<<<<< HEAD
     SUBROUTINE gcDist  (  rlat, rlon, lats, lons   , n , dist  )
 
     real(8), parameter :: R = 6371.0   ! Radius of Earth in kilometers
@@ -32,4 +33,6 @@
 
      enddo  
      END SUBROUTINE  gcDist 
+=======
+>>>>>>> 21364b199d166b8270446c96f0f0226a0e2b957f
 
