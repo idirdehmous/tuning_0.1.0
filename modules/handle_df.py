@@ -128,6 +128,7 @@ class ConcatDf:
     def ConcatByDate (self, dfl  ):
         if isinstance (dfl , list ):
            merged_df =pd.DataFrame()
+           print( dfl  ) 
            merged_df =pd.concat(dfl)
            return merged_df
         else:
