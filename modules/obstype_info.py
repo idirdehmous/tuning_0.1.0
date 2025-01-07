@@ -7,8 +7,6 @@ class ObsType:
  """
   Class: Contains the  necessary obs list to run 
          obstool , Jarvinen and Desroziers diags 
-         NOT FINISHED !
-         MAYBE IT HAS TO BE SPLITTED INTO (Conv and Sat) !
  """
 
  def _init__(self):
@@ -22,7 +20,7 @@ class ObsType:
                         'temp'   ,
                         'templ'  ]
 
-     self.sat_obs = [ 'amsua'  ,
+     self.sat_obs = [    'amsua'  ,
                          'amsub'  ,    
                          'atms'   ,   
                          'iasi'   ,
@@ -32,14 +30,11 @@ class ObsType:
 
      return None 
 
- def ConvDict(self  , obs_type ="conv" ) :
+
+
+ def ConvDict(self) :
     self.obs_type=obs_type.strip()
        
-    _obs=['conv', 'sat']
-    if self.obs_type not in _obs :
-       print( "Observaton type is None or not satallite neither conventional. Possible argument 'conv', 'sat'")
-       sys.exit(1)
-
     # CONVENTIONAL  
     self.obs_conv=[
 
@@ -137,28 +132,34 @@ class ObsType:
 
  def SatDict(self ):   
     # SATELLITE      
+    #"AMSU-A","MHS","SEVIRI","IASI","ATMS","MWHS2","CRIS"   
+    # This list is last update ( 24 November 2024  during Oslo WW )
+    # By J.Sanchez 
     self.obs_sat  = [ 
          { "obs_name"          : "amsua",
            "obstype"           : 7 ,
            "codetype"          : None,
            "varno"             : None,
            "vertco_reference_1": None,
+           "sat_id"            : [209,223,3,5], 
            "sensor"            : 3,
            "level_range"       : None     },
  
-         { "obs_name"          : "amsub",
-           "obstype"           : 7 ,
-           "codetype"          : None,
-           "varno"             : None,
-           "vertco_reference_1": None,
-           "sensor"            : 4 ,
-           "level_range"       : None     },
+    #     { "obs_name"          : "amsub",
+    #       "obstype"           : 7 ,
+    #       "codetype"          : None,
+    #       "varno"             : None,
+    #       "vertco_reference_1": None,
+    #       "sat_id"            : 
+    #       "sensor"            : 4 ,
+    #       "level_range"       : None     },
  
-         { "obs_name"          : "msh",
+         { "obs_name"          : "mhs",
            "obstype"           :  7 ,
            "codetype"          : None,
            "varno"             : None,
            "vertco_reference_1": None,
+           "sat_id"            : [223,3,5], 
            "sensor"            : "15 ",
            "level_range"       : None     },
  
@@ -167,6 +168,7 @@ class ObsType:
            "codetype"          : None,
            "varno"             : None,
            "vertco_reference_1": None,
+           "sat_id"            : [3,5] , 
            "sensor"            : 16,
            "level_range"       : None     },
  
@@ -175,28 +177,47 @@ class ObsType:
            "codetype"          : None,
            "varno"             : None,
            "vertco_reference_1": None,
+           "sat_id"            : [224,225,226], 
            "sensor"            : 19 ,
            "level_range"       : None     },
  
-          {"obs_name"          : "mwhs" ,
+       #   {"obs_name"          : "mwhs" ,
+       #    "obstype"           : 7 ,
+       #    "codetype"          : None,
+       #    "varno"             : None,
+       #    "vertco_reference_1": None,
+       #    "sat_id"            : None, 
+       #    "sensor"            : 73 ,
+       #    "level_range"       : None      },
+ 
+
+          {"obs_name"          : "mwhs2" ,
            "obstype"           : 7 ,
-           "codetype"          : None,
+           "codetype"          : None,        
            "varno"             : None,
            "vertco_reference_1": None,
+           "sat_id"            : 523 , 
            "sensor"            : 73 ,
            "level_range"       : None      },
- 
+
          { "obs_name"          : "seviri",
            "obstype"           : 7 ,
            "codetype"          : None,
            "varno"             : None,
            "vertco_reference_1": None,
+           "sat_id"            : 57 , 
            "sensor"            : 29,
-           "level_range"       : None      }   ]
-
-
-
-
+           "level_range"       : None      } ,
+         
+         { "obs_name"          : "cris",
+           "obstype"           : 7 ,
+           "codetype"          : None,
+           "varno"             : None,
+           "vertco_reference_1": None,
+           "sat_id"            : [225,226] ,
+           "sensor"            : 27 ,
+           "level_range"       : None      }  
+         ]
 
 
     # Satellite names and attributes 
@@ -220,14 +241,17 @@ class ObsType:
                      523:"FY-3D", 
                      57 :"Meteosat-10" }
 
+    
     # sensor --> sensor names
-    self.sens_name_dict  = { 3:"amsua",
-                             4:"amsub",
-                            15:"mhs"  ,
-                            16:"iasi" ,
-                            19:"atms" ,
-                            73:"mwhs" ,
-                            29:"seviri" }
+    self.sens_obs_dict  = {  3:"amsua" ,
+                             4:"amsub" ,
+                            15:"mhs"   ,
+                            16:"iasi"  ,
+                            19:"atms"  ,
+                            27:"cris"  ,
+                            29:"seviri",
+                            73:"mwhs2" 
+                            }
 
 
     # We use the sensor as short name                   
@@ -236,21 +260,21 @@ class ObsType:
                       15   :  "15" ,# MHS          :15
                       16   :  "16" ,# IASI         :16
                       19   :  "19" ,# ATMS         :19
-                      73   :  "73" ,# MWHS         :73 
-                      29   :  "29"  # SEVIRI       :29
+                      73   :  "73" ,# MWHS2        :73 
+                      29   :  "29" ,# SEVIRI       :29
+                      27   :  "27"  # CRIS         :27 
                       }
 
 
-    if   self.obs_type== "conv":
-       return self.obs_conv  , self.varno_dict
-
-    elif self.obs_type =="sat":
-       return self.sat_name,  self.sat_name_dict,  self.sens_name_dict ,  self.sensor_dict 
+    return self.obs_sat ,  self.sat_name,self.sat_name_dict,  self.sens_obs_dict ,  self.sensor_dict 
 
 
- def RenameVarno (self, string_var ):
+ def RenameVarno (self, string_var , obs_kind ):
      dict_={}
-     obslist , dict_   = self.ConvDict()
+     if obs_kind == 'conv' :  obslist , dict_   = self.ConvDict()
+     if obs_kind == 'satem':  obslist , _, _, _, dict_   = self.SatDict ()
+         
+
      obsname=[  dobs["obs_name"] for dobs in obslist  ]
      name      =    string_var.split("_")[0]
      vr        =int(string_var.split("_")[1] )
@@ -259,40 +283,36 @@ class ObsType:
 
 
 
- def SelectObs(self, list_   ):
+ def SelectConv(self, list_   ):
      varobs=[]
      self.list          = list_
-     obs_list, var_dict = self.ConvDict()
+     obs_list, var_dict =self.ConvDict()
      for lst in self.list  :
          for k, v in lst.items():
              code =lst["codetype"]
-             varno=lst["varno"]
+             varno=lst["varno"   ]
              if  code == None and varno == None:
                  if lst["obs_name"] not in varobs:
                     varobs.append( lst["obs_name"] )
                  else:
-                    continue 
+                    continue              
              elif isinstance( code ,list) and isinstance( varno  ,list):  #  ( list, list)
                   for c in code:
                       for v in varno :
-                          #obsId = lst["obs_name"]+"_c"+str(c)+"_v"+str(v) 
                           obsId = lst["obs_name"]+"_"+var_dict[v]
                           if obsId  not in varobs:
                              varobs.append( obsId   )
              elif isinstance( code , list ) and isinstance( varno  ,int):  # (list,  int
                   for c  in code:
-                          #obsId = lst["obs_name"]+"_c"+str(c)+"_v"+str(lst["varno"] ) 
                           obsId = lst["obs_name"]+"_"+var_dict[varno] 
                           if obsId  not in varobs:
                              varobs.append( obsId  )
              elif isinstance( code , int  ) and isinstance( varno  , list ): # (int , list)
                   for v   in varno:
-                        #obsId =lst["obs_name"]+"_c"+str(lst["codetype"])+"_v"+str(v)
                         obsId =lst["obs_name"]+"_"+var_dict[v]
                         if obsId not in varobs:
                            varobs.append( obsId )
              elif isinstance ( code, int )  and isinstance ( varno , int  ):  # (int , int ) 
-                  #obsId = lst["obs_name"]+"_c"+str(code)+"_v"+str(varno)
                   obsId = lst["obs_name"]+"_"+var_dict[varno]
                   if obsId not in varobs:
                      varobs.append( obsId )
@@ -310,17 +330,60 @@ class ObsType:
                   obsId = lst["obs_name"]+"_"+var_dict[lst["varno"] ]
                   if obsId not in varobs:
                      varobs.append(  obsId )
-             #elif isinstance( code ,int ) and varno == None:        # (int , None ) 
-             #     obsId =lst["obs_name"]+"_c"+str(lst["codetype"] ) 
-             #     varobs.append ( obsId  )
-     #for obs in self.attrib:
-     #    obs_dict= { k:v  for k , v in  zip ( self.keys, obs  )  }
-     #    dict_list.append( obs_dict  )
-
 
      return  varobs 
 
 
 
 
+ def SelectSat(self, list_   ):
+     varobs=[]
+     self.list          = list_
+     obs_list, _, _ , sens_obs , var_dict =self.SatDict()
+     
+     for lst in self.list  :
+         for k, v in lst.items():
+             satid   =lst["sat_id"]
+             sensor  =lst["sensor"]
+             if  satid == None and  sensor == None:
+                 if lst["obs_name"] not in varobs:
+                    varobs.append( lst["obs_name"] )
+                 else:
+                    continue      
+             elif isinstance( satid ,list) and isinstance( sensor  ,list):  #  ( list, list)
+                  for c in satid:
+                      for v in sensor :
+                          obsId = lst["obs_name"]+"_"+var_dict[v]
+                          if obsId  not in varobs:
+                             varobs.append( obsId   )
+             elif isinstance( satid , list ) and isinstance( sensor  ,int):  # (list,  int
+                  for c  in satid:
+                          obsId = lst["obs_name"]+"_"+var_dict[sensor] 
+                          if obsId  not in varobs:
+                             varobs.append( obsId  )
+             elif isinstance( satid , int  ) and isinstance( sensor  , list ): # (int , list)
+                  for v   in sensor :
+                        obsId =lst["obs_name"]+"_"+var_dict[v]
+                        if obsId not in varobs:
+                           varobs.append( obsId )
 
+             elif isinstance ( satid , int )  and isinstance ( sensor , int  ):  # (int , int ) 
+                  obsId = lst["obs_name"]+"_"+var_dict[sensor]
+                  if obsId not in varobs:
+                     varobs.append( obsId )
+             elif isinstance( satid ,list) and sensor == None:                 #  (list , None )
+                  for c in code:
+                      obsId = lst["obs_name"]+"_c"+str(c) 
+                      if obsId not in varobs:
+                         varobs.append(obsId) 
+             elif satid ==None and  isinstance( sensor  , list ):      # ( None , list ) 
+                  for v in sensor:
+                      obsId =lst["obs_name"]+"_"+var_dict[v]
+                      if obsId not in varobs:
+                         varobs.append(obsId) 
+             elif satid ==None and  isinstance( sensor  , int ):      # (None , int )
+                  obsId = lst["obs_name"]+"_"+var_dict[lst["sensor"] ]
+                  if obsId not in varobs:
+                     varobs.append(  obsId )
+
+     return  varobs 
