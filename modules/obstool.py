@@ -10,27 +10,25 @@ import  multiprocessing as mp
 import  time
 import  gc  
 
+
 # pyodb_extra  MODULES 
 from pyodb_extra.environment  import  OdbEnv
-from pyodb_extra.odb_glossary import  OdbLexic
 from pyodb_extra.parser       import  StringParser
 from pyodb_extra.odb_ob       import  OdbObject
-from pyodb_extra.exceptions   import  *
-from pyodb_extra.pool_factory import  PoolSlicer
 
-# EXPORT THE DIRECTORY CONTAINING libodb.so 
-# ( ONLY THE TOP DIRECTORY    /path/to/../../   bin , include , lib etc  )
+
+# pyodb ENV 
 odb_install_dir=os.getenv( "ODB_INSTALL_DIR" ) 
 env= OdbEnv(odb_install_dir, "libodb.so") 
 env.InitEnv () 
 
-# NOW pyodb CAN BE IMPORTED 
+# pyodb MODULES (Pure C )
 from pyodb  import   odbFetch
 from pyodb  import   odbDca
 
 
 
-# obstool modules !
+# OBSTOOL MODULES 
 from dca             import DCAFiles
 from build_sql       import SqlHandler 
 from cma_rows        import OdbCCMA , GatherRows
@@ -174,7 +172,7 @@ class ExtractData:
 
        # Obs + codetype or varno ( used as keys  for data tracking  )
        # They will figure in the final Dataframe stats 
-       self.varobs = types.SelectObs ( self.selected_dicts )
+       self.varobs = types.SelectConv ( self.selected_dicts )
        return self.selected_dicts , self.varobs
 
 
@@ -221,7 +219,7 @@ class ExtractData:
         return self.selected_dicts 
 
 
-    def _OdbRows  (self,  cdtg , dobs ,chunk_size , nprocs , vrb ):
+    def _OdbRows  (self,  cdtg , dobs ,chunk_size , nprocs , vrb , sema ):
         # Obstool needs only CCMA 
         ccma_path ="/".join( [self.odb_path , cdtg  , "CCMA"] ) 
 
@@ -288,8 +286,9 @@ class ExtractData:
                                                      nchunk      =chunk_size, 
                                                      nproc       =nprocs    ,
                                                      datetime    =cdtg , 
-                                                     verbosity   =vrb )
-        #sema.release()
+                                                     verbosity   =vrb  
+                                                      )
+        sema.release()
 
 
 
@@ -322,45 +321,39 @@ class ExtractData:
         types   = ObsType ()
         conv_list   , varno_dict = types.ConvDict()
 
-        #if reprocess_odb==True:
-        #max_concurrency = 8  # --> 1 Days (  if cycle inc == 3 )
-        #sema = mp.Semaphore(max_concurrency)
-        procs=[]
-        ncpu =mp.cpu_count() 
-        for dobs in obs_list:
-            for cdtg in period:
-                obsname=dobs["obs_name"]
-                bin_files=self.odb_path+"/"+cdtg+"/bin/"+cdtg+"/"+obsname+"_*.bin"
-                os.system("rm -rf "+bin_files )
-                if vrb in [1, 2]:
-                   print( "Process observation type {} ODB date {} ".format( dobs["obs_name"], cdtg   ))
-                self._OdbRows   (  cdtg  , dobs, chunk_size, nprocs , verbosity )
-                #sema.acquire()
-                #p=mp.Process (target =self._OdbRows  , args=(cdtg  , dobs, chunk_size, nprocs , verbosity  ) )
-                #p.start()
-                #procs.append(p)
-        for p in procs:
-            p.join()
-            #procs=[]
+        if reprocess_odb==True:
+           max_concurrency = 8                  # --> 1 Days (  if cycle inc == 3 )
+           procs=[]
+           sema = mp.Semaphore(max_concurrency)
+           ncpu =mp.cpu_count() 
+           for dobs in obs_list:
+               for cdtg in period:
+                   obsname=dobs["obs_name"]
+                   bin_files=self.odb_path+"/"+cdtg+"/bin/"+cdtg+"/"+obsname+"_*.bin"
+#                   print( bin_files ) 
+                   os.system("rm -rf "+bin_files )
+                   if vrb in [1, 2]:
+                      print( "Process observation type {} ODB date {} ".format( dobs["obs_name"], cdtg   ))
+                   sema.acquire()
+                   p=mp.Process (target =self._OdbRows  , args=(cdtg  , dobs, chunk_size, nprocs , verbosity , sema  ) )
+                   p.start()
+                   procs.append(p)
+               for p in procs:
+                   p.join()
+               procs=[]
 
-
-
-    def rows2frames (self, bdate , edate ):
+    def obs_distances (self, bdate , edate ):
         # Gather all small chunks in  *.tmp files 
         period = self.set_period( bdate , edate  )
-
         gt=GatherRows()  
         procs=[]
-        max_concurrency = 8
-        sm = mp.Semaphore(max_concurrency)
         for var in self.varobs:
             for cdtg in period: 
-                sm.acquire()
-                p=mp.Process (target =gt.Rows2Array  , args=(self.odb_path , cdtg, var,   sm ,) )
+                p=mp.Process (target =gt.Rows2Array  , args=(self.odb_path , cdtg, var, ) )
                 p.start()
                 procs.append(p)
-        for p in procs:
-            p.join()
+            for p in procs:
+                p.join()
 
 
 
@@ -376,7 +369,7 @@ class Diags:
 
 
       def set_period(self, bdate , edate , cycle_inc=3):
-          # Replace with inhirited from ExtractData    class 
+          # Replace with inherited from ExtractData    class 
           if not isinstance (bdate, str) or not isinstance ( edate , str):
              btype, etype =   type(bdate ) , type( edate)
              print("Start and end dates period argument must be strings. Got {}  {} ".format( btype, etype ) )
@@ -397,13 +390,16 @@ class Diags:
 
       def _ReadPickle (self, path , cdtg , var  ):
           filepath="/".join( (path,  var+"_"+cdtg+"_xz.pkl"    ) )
-          pickled_df   = pd.read_pickle(filepath  , compression ="xz" )  
-          return pickled_df
+          if os.path.isfile( filepath  ):
+             pickled_df   = pd.read_pickle(filepath  , compression ="xz" )  
+             return pickled_df
+          else:
+              print("WARNING : No data found. ODB Date:{},  parameter:{}".format( cdtg , var  ) )
 
 
 
       def get_frames (self , bdate , edate   ,  obs_list, read_path ):
-          all_df=[]
+          all_df=defaultdict(list)
           types           = ObsType ()
           _  , varno_dict = types.ConvDict()
           period= self.set_period( bdate ,edate  )
@@ -414,22 +410,33 @@ class Diags:
                     varnos = dobs["varno"]
                     for vr in varnos:
                         varname= dobs["obs_name"]+"_"+ varno_dict[ int( vr) ]                         
-                        all_df.append(  self._ReadPickle ( read_path+"/"+cdtg+"/pkl/"+cdtg , cdtg ,  varname))
+                        all_df[varname].append(  self._ReadPickle ( read_path+"/"+cdtg+"/pkl/"+cdtg , cdtg ,  varname))
           return all_df  
 
-      def dhl_stats(self, all_df , new_max_dist=100 , new_int_dist=10, delta_t=60):
-          figs =[]
-          stats=[]
-          for dl  in all_df:
-              dfd    = dl.query("dist <=  "+str(new_max_dist) )
-              ddf    =self.con.ConcatByDate (pd.DataFrame )(dfd )
-              cdf    =self.bin.CutByBins    (ddf )
-              sdf    =self.spt.SubsetDf     (cdf )
+
+
+
+      def dhl_stats  (self, all_df , new_max_dist=100 , new_int_dist=10, delta_t=60):
+          figs    =[]
+          stats   =[]
+          dfs     =[]    # Returned by Split 
+          stat_list=[]
+          for k , v   in all_df.items():
+              var    = k
               
-              # Stats
-              stat   =DHLStat (  sdf  , new_max_dist , new_int_dist , delta_t )
+              dflist =[ d.query("dist <=  "+str(new_max_dist) )  for d in v if d is not  None  ]
+
+              ddf    =self.con.ConcatByDate (dflist)
+              cdf    =self.bin.CutByBins(ddf )
+              sdf    =self.spt.SubsetDf (cdf )
+              sdf["varname"] =  var 
+              dfs.append([var ,sdf] )  
+          
+
+          for dl in dfs:
+              var = dl[0]
+              df  = dl[1]
+              stat   =DHLStat (  df , var  , new_max_dist , new_int_dist , delta_t )
               st_df  =stat.getStatFrame()  
-              del ddf
-              del cdf
-              gc.collect()
-          return st_df  
+              stat_list.append({var:st_df}) 
+          return    stat_list  
