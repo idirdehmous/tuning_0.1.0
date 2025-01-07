@@ -18,28 +18,28 @@ class DHLStat:
              Desroziers , Hollingsworth,Lonneberg ( DHL )
     """
 
-    def __init__(self, df   ,new_max_dist =100, new_bin_dist =10 , delta_t =60 ):
+    def __init__(self, df  , var ,new_max_dist =100, new_bin_dist =10 , delta_t =60 ):
         
-    
-           # STATS
+        
+        # STATS
         # GET THE STATS IN THE MIDDLE OF THE BIN SQUARE  (the maximum distance and bin interval could be changed !!)
         # DEFAULT VALUES IN class 
         self.dist_max=100 #Km
         self.bin_int =10  #Km
 
         # OVERWRITE IF DIFFERENT 
-
+        print("**********    DESROZIERS , HOLLINGSWORT-LÖNNBERG  Statistics.    Parameter : {}  **********".format( var   ))
         if new_max_dist != 100:
            self.dist_max =  new_max_dist
            print("New value for maximum distance has been set. Maximum value for distance =" , self.dist_max )
         else:
-           print("Default value for maximum distance is used :" , self.dist_max )
+            print("Default max distance     :{} Km".format( self.dist_max ))
 
         if new_bin_dist != 10 : 
            self.bin_int =  new_bin_dist
            print("New value for maximum distance has been set. bin_interval=" , self.bin_int)
         else:
-           print("Default value for binning interval is used :" , self.bin_int )
+            print("Default binning interval     :{} Km".format( self.dist_max ) )
 
         self.gp       =GroupDf ()
         self.merged_df=df 
