@@ -9,7 +9,7 @@ from   datetime      import datetime
 from   itertools     import  *
 import re 
 import gc  
-
+import logging 
 
 
 # Pyodb modules 
@@ -25,16 +25,18 @@ from pyodb  import   odbFetch
 from pyodb  import   odbDca
 
 
-# obstool modules
+
+# OBSTOOL MODULES
 from build_sql             import SqlHandler  
 from multi_proc            import MpRequest 
 from obstype_info          import ObsType 
 from flush_data            import DataIO 
 from dist_matrix           import gcDistance
+#import haversine 
 
 
 class OdbCCMA:
-    __slots__ = ['types'    , 'varno_dict',
+    __slots__ = ['obs_kind' ,'types'    , 'varno_dict',
                  'd_io'     , 'varobs',    'path'   ,'query' ,
                  'queryfile', 'pool'  ,    'verbose','header',
                  'pbar'     , 'header',    'rrows'  ,'nchunk',
@@ -47,7 +49,8 @@ class OdbCCMA:
 
     def FetchByObstype(self, **kwarg):
         # ARGUMENT TO SEND, GET ROWS 
-        args=["varobs" ,
+        args=["obs_kind"  ,
+              "varobs"    ,
               "dbpath"    , 
               "sql_query" , 
               "sqlfile"   ,
@@ -64,8 +67,9 @@ class OdbCCMA:
         kargs=[] ; kvals=[]
         for k , v in   kwarg.items(): 
             if k in args:
-               self.varobs   =kwarg["varobs"]
-               self.path     =kwarg["dbpath"]
+               self.obs_kind =kwarg["obs_kind"]
+               self.varobs   =kwarg["varobs"  ]
+               self.path     =kwarg["dbpath"  ]
                self.query    =kwarg["sql_query" ]
                self.queryfile=kwarg["sqlfile"   ]    
                self.pool     =kwarg["pools"     ]
@@ -82,35 +86,43 @@ class OdbCCMA:
               print("Unexpected argument :" , k)
         
         self.types           = ObsType ()
-        _ , self.varno_dict  = self.types.ConvDict() 
 
+        if self.obs_kind == 'conv'   :
+           _ , self.varno_dict  = self.types.ConvDict() 
+        elif self.obs_kind == 'satem':
+           sat_list, _ , _ ,sens_name_dict, sensor_dict = self.types.SatDict() 
+        else:
+           print("Unknown observation category. Possible values: 'conv' or 'satem'")
+           sys.exit(0)
+    
+        # SQL 
         sql=SqlHandler()
         nfunc , sql_query = sql.CheckQuery(self.query)  
 
-    
-        mq=MpRequest (self.path ,  sql_query, self.varobs , self.cdtg , self.verb )       
+        # Multiproc 
+        mq=MpRequest (self.path ,  sql_query,self.obs_kind,  self.varobs , self.cdtg , self.verb )
         nchunks=self.nchunk
         nproc  =self.nproc 
         mq.DispatchQuery( cdtg=self.cdtg ,  nchunk=nchunks, nproc=nproc )
 
-
-        # Gather all small chunks in  *.tmp files 
-        #for var in self.varobs:
-        #    arrs   = gt.Rows2Array( self.path , self.cdtg , var  )
+   
 
 
-    
+
 class GatherRows:
-      __slots__ = ['gcd', 'tp', 'varno', 'novar', 'obs_dict']
-      def __init__(self  ):
-
-
+      __slots__ = ['obs_kind',  'gcd', 'tp', 'varno', 'novar', 'obs_dict', 'sensor']
+      def __init__(self , obs_kind  ):
           self.gcd =gcDistance ()
           self.tp =ObsType ()
-          self.obs_dict ,self.varno =self.tp.ConvDict()
+          self.obs_kind=obs_kind  
+          if self.obs_kind == 'conv' :  
+             self.obs_dict ,self.varno         =self.tp.ConvDict()
+             # Reverse the dict 
+             self.novar = { v:k for k,v in self.varno.items() }
 
-          # Reverse the dict 
-          self.novar = { v:k for k,v in self.varno.items() }
+          if self.obs_kind == 'satem':  self.obs_dict ,_,_,_, self.sensor =self.tp.SatDict()
+
+
           d_io  =DataIO ()
           return None 
 
@@ -130,17 +142,17 @@ class GatherRows:
           return {var:df_data }
 
 
-      def Rows2Array(self , db_path , cdtg , var , sm  ):
+      def Rows2Array(self , db_path , cdtg , obs_kind , var  ):
           # LOAD save data from .tmp files 
           d_io=DataIO()
           ext=".bin"
-          df_data =  d_io.LoadFrame ( db_path ,"bin", cdtg , var , ext  )                    
+          subdir="bin"
+          df_data =  d_io.LoadFrame ( db_path ,subdir , cdtg , var , ext  )                    
           if df_data  is not None:
              lats= [ row  for row in df_data["lats"]  ]
              lons= [ row  for row in df_data["lons"]  ]
              an_d= [ row  for row in df_data["an_d"]  ]
              fg_d= [ row  for row in df_data["fg_d"]  ]
-         
              # Build a numpy array 
              idx=[]
              [  idx.append(i)   for i in  product(range(len(lats)) , repeat=2) ]
@@ -152,14 +164,12 @@ class GatherRows:
              fg1=[i[0] for i in product(fg_d , repeat=2)    ]
              fg2=[i[1] for i in product(fg_d , repeat=2)    ]
 
+
              # Matrix distances  (Great circle distances )
              latlon=np.array( [lats,lons] ).T
-             #name      =var.split("_")[0]
-             #vr        =int(var.split("_")[1] )
-             #vname     =name + "_"+ self.varno[vr]
-
-             dist=self.gcd.ComputeDistances ( latlon  , var  , chunk_size=10 )
+             dist=np.array(list(self.gcd.ComputeDistances ( cdtg , var , latlon    , chunk_size=50 ) )     )
              gcdist=list(dist.reshape(len(lats)**2 ) )
+
              data=[d1,d2, gcdist,  an2 , an1 , fg2, fg1  ]
              data_arr = np.array( data  ).T
 
@@ -176,13 +186,17 @@ class GatherRows:
              # Serialize  to pickle files 
              ext   =".pkl"
              subdir= "pkl"
-             #print("Flush dataframe into pickle file.")
-             #print("ODB: {}, parameter: {}, Path: {}".format(cdtg , var ,  db_path+"/"+cdtg+"/"+subdir )  )
              
              d_io.FlushFrame (df_data ,db_path  ,subdir ,  cdtg , var , None  ,  ext  )
-             sm.release()
              # CLEAN Memory !
              del d1 ; del d2 ; del an1 ; del an2 ; del fg1 ; del fg2 
              del data ; del gcdist ; del dist ; del data_arr 
-             gc.collect()
 
+
+
+if __name__ == '__main__':
+    # __main__  GUARD statment !
+    # Set up logging configuration for debugging
+    logging.basicConfig(level=logging.DEBUG)
+    caller = gcDistance ()     
+    caller.ComputeDistances()  
