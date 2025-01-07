@@ -1,9 +1,14 @@
 #-*- coding :utf-8 -*- 
 import os  , sys 
 import multiprocessing as mp 
+#import multiprocessing.dummy  as mp
 import numpy           as np 
-from   tqdm    import tqdm 
+import haversine  as hav 
 import gc   
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class gcDistance:
@@ -21,7 +26,6 @@ class gcDistance:
           return R * c
 
 
-
       def Distances_in_chunk(self, chunk_data, full_data, start_idx, chunk_size):
           """
           Compute great circle distances between all points in a chunk with all other points.
@@ -35,29 +39,29 @@ class gcDistance:
           
           """
           pp=os.getpid() 
-          #print( "Compute matrix distances,          process ID : {}".format(pp))
           distances_chunk = np.zeros((chunk_size, len(full_data)))
 
-#          for i in tqdm( range(chunk_size), desc="Nchunks ", ncols=100, file=sys.stdout):
-          for i in range(chunk_size) :
-             lat1, lon1 = chunk_data[i]
-             lat2, lon2 = full_data [:, 0] , full_data[:, 1]         # Full data lat/lon
+          llat2 = full_data [:, 0]
+          llon2 = full_data [:, 1]
+          
+          lat1=[ item[0] for item   in chunk_data ]
+          lon1=[ item[1] for item   in chunk_data ]
+        
+          npoint=len(llat2)
 
-             # The distance is computed with haversine formula 
-             # In the R the great circle is computed with Vicenty's formula 
-             # Could be implemented later
-             # The diffrence in accuracy is just 0.01 %
-             distances_chunk[i, :] = self.Haversine(lat1, lon1, lat2, lon2 ) 
-    
-             #distances_chunk[i, :] = gcDist ( lat1, lon1, lon2, lat2 , len(lon2)  )
+          try:
+             # Assuming hav.gcdist is the correct method to compute the distance between points
+             dist = [
+                 list(hav.gcdist(lat1, lon1, llat2, llon2, npoint ))
+                 for lat1, lon1, lat2, lon2 in zip(lat1, lon1, llat2, llon2)
+                        ]
+             return start_idx ,  np.array(dist )
+          except Exception as e:
+         #    # Catch the exception and return an error message or a None value
+              logging.error(f"Error in worker function Distances_in_chunk  : {e}")
+              return None  # Or some error flag like "error"
 
-             # Could be changed by geopy.geodesic 
-             # distances_chunk[i, :] = geodesic(point1, point2).kilometers.all()
-          return start_idx, distances_chunk
-
-
-
-      def ComputeDistances(self,  latlon , var , chunk_size=20 ):
+      def ComputeDistances(self, cdtg , var ,  latlon , chunk_size=200   ):
           """
           Compute the full distance matrix for all points in the data using chunks and multiprocessing.
           Arguments:
@@ -69,33 +73,31 @@ class gcDistance:
           """
           nodata=False 
           if len(latlon) ==0:
-             print("WARNING: No data found to compute distances matrix.  parameter: {}".format(  var))
+             print("WARNING: No data found to compute distances matrix. Date: {}  parameter: {}".format( cdtg ,  var))
              nodata=True 
 
           if not nodata:
-             print( "Compute ditances matrix for parameter :" ,  var  ) 
+              npoint = latlon.shape[0]
+              print( "Compute ditances matrix.   Date : {},  parameter: {},   {} x {} points".format(  cdtg ,  var , npoint,npoint )) 
           n_samples = len(latlon)
           distance_matrix = np.zeros((n_samples, n_samples))
 
           # Split the data into chunks for parallel computation
-          p2=mp.Pool( processes= 32  )
+          p2=mp.Pool( processes= chunk_size  )
           results=[]
 
+          procs=[]
           for start_idx in range(0, n_samples, chunk_size):
               chunk_end_idx = min(start_idx + chunk_size, n_samples)
               chunk_data    = latlon[start_idx:chunk_end_idx]
 
-              # Submit task to the pool
-              results.append(p2.apply_async(
-              self.Distances_in_chunk,  (chunk_data, latlon , start_idx, chunk_end_idx - start_idx) ))
-
-
-          p2.close()
-          p2.join() 
-
-          # Collect all results
-          for result in results:
-              start_idx, distances_chunk = result.get()
+              #out=p2.apply_async( self.Distances_in_chunk,(chunk_data, latlon , start_idx, chunk_end_idx - start_idx)  )    
+              out=p2.starmap( self.Distances_in_chunk,  [(chunk_data, latlon , start_idx, chunk_end_idx - start_idx, )]  )[0]
+              start_idx , distances_chunk= out[0], out[1]
               distance_matrix[start_idx:start_idx+distances_chunk.shape[0], :] = distances_chunk
-          return  distance_matrix
+          p2.close()
+          p2.terminate ()
+          p2.join() 
+          return distance_matrix
+          
 
