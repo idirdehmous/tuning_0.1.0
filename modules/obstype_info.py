@@ -33,7 +33,7 @@ class ObsType:
 
 
  def ConvDict(self) :
-    self.obs_type=obs_type.strip()
+    #self.obs_type=obs_type.strip()
        
     # CONVENTIONAL  
     self.obs_conv=[
