@@ -1,11 +1,9 @@
 #-*- coding :utf-8 -*- 
 import os  , sys 
 import multiprocessing as mp 
-#import multiprocessing.dummy  as mp
 import numpy           as np 
 import haversine  as hav 
 import gc   
-
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -78,7 +76,7 @@ class gcDistance:
 
           if not nodata:
               npoint = latlon.shape[0]
-              print( "Compute ditances matrix.   Date : {},  parameter: {},   {} x {} points".format(  cdtg ,  var , npoint,npoint )) 
+              #print( "Compute ditances matrix.   Date : {},  parameter: {},   {} x {} points".format(  cdtg ,  var , npoint,npoint )) 
           n_samples = len(latlon)
           distance_matrix = np.zeros((n_samples, n_samples))
 
