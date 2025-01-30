@@ -140,13 +140,13 @@ class GroupDf:
     def __init__(self  ):
         return None 
 
-    def DataByBins (self, merged_df  , new_max_dist=100  , new_bin_int=10 ):
+    def DataByBins (self, merged_df  , new_max_dist=100  , new_bin_dist=10 ):
         self.max_ndist    =100
         self.bin_ninterval=10 
 
         if new_max_dist != 100:
            self.max_ndist =  new_max_dist
-        if new_bin_int != 10 :
+        if new_bin_dist != 10 :
            self.bin_ninterval =  new_bin_dist
 
         d_bins    = [ int(i) for i in   np.arange(0,self.max_ndist     + self.bin_ninterval    ,self.bin_ninterval )  ]
