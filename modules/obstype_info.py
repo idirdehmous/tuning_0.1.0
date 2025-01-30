@@ -271,7 +271,7 @@ class ObsType:
 
  def RenameVarno (self, string_var , obs_kind ):
      dict_={}
-     if obs_kind == 'conv' :  obslist , dict_   = self.ConvDict()
+     if obs_kind == 'conv' :  obslist , dict_            = self.ConvDict()
      if obs_kind == 'satem':  obslist , _, _, _, dict_   = self.SatDict ()
          
 
@@ -331,7 +331,7 @@ class ObsType:
                   if obsId not in varobs:
                      varobs.append(  obsId )
 
-     return  varobs 
+     return  varobs  , obs_list
 
 
 
@@ -386,4 +386,4 @@ class ObsType:
                   if obsId not in varobs:
                      varobs.append(  obsId )
 
-     return  varobs 
+     return  varobs , obs_list
