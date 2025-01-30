@@ -195,7 +195,7 @@ class GatherRows:
 
 
 if __name__ == '__main__':
-    # __main__  GUARD statment !
+    # __main__  GUARD statement !
     # Set up logging configuration for debugging
     logging.basicConfig(level=logging.DEBUG)
     caller = gcDistance ()     
