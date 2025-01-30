@@ -11,7 +11,6 @@ class DataIO:
     def __init__(self):
         return None 
 
-
     def CheckWrite (self, file_path):
         if os.access(file_path, os.W_OK):           
            return True 
@@ -25,15 +24,12 @@ class DataIO:
            return False
 
 
-
-
     def FlushFrame (self,   df ,dbpath ,  subdir , cdtg , var, fid , ext ):
         """
         Since the program is relatively long, it becomes sometimes 
         slow to free memory and cosumes a lot of resources 
         Flushing data between some steps can helps to avoid such a behavior 
         """
-
         if fid !=None:
            pkpath= dbpath+"/"+subdir+"/"+cdtg
            os.system( "mkdir -p "+ pkpath   )
@@ -62,7 +58,6 @@ class DataIO:
         pkpath= dbpath+"/"+cdtg+"/"+subdir+"/"+cdtg
         filepath="/".join((  pkpath , var+"_"+cdtg+"_xz*"+ext ) )
         files=glob( filepath  )
-
         for file in files:
             if os.path.isfile( file ):
                try:
